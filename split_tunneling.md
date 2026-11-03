@@ -5,10 +5,10 @@
 - Вы попадете на страницу маршрутизации, здесь нам потребуется сделать несполько вещей.
 - Сначала настроим сайты с доменом .ру.
 - Нажмите на +.
-<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/eff98584-390b-45a5-8d55-6aca485d5c5b" />
+<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/2ba8beef-02ce-4de9-9a47-bd75004497a1" />
 
 - вы попадете на страницу настройки Р.Т. Настройте все точно также:
-<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/4b8d380f-56e1-4016-aafe-dec2ff05c76b" />
+<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/d3d8b2c0-4886-439c-986a-d636d4daf4b4" />
 
 - теперь нажмите на галочку, и все готово! Если потребуется, можно сделать абсолютно такое же правило для любого другого сайта, заменив домен .ru на домен нужного сайта.
 
@@ -18,11 +18,11 @@
 - Все готово! Можете пользоваться!
 ## AmneziaVPN
 - На главной странице нажмите на "Раздельное туннелирование ...":
-<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/6e37b957-8b54-48a7-9637-bd506b42ea9c" />
+<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/7e4a001f-b25a-4aac-8cc3-e3c7d0336f05" />
 
 - После вы попадёте на страницу настройки. Нам понадобятся оба пункта.
 - Сначала настроим Р.Т. для сайтов.
-<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/5baa10b6-8e0b-4efc-9cc1-e0e40bd3e650" />
+<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/701a11c1-2643-49dd-8fe1-ec5fe33347ea" />
 
 - Проверьте, чтобы пункты 1-2 совпадали у вас.
 - К сожалению, в AmneziaVPN нельзя настроить раздельное туннелирование для всех сайтов с доменом .ru. По этому придётся добавлять все сайты ру сегмента, которыми ВЫ пользуетесь (пометка 3).
@@ -32,7 +32,7 @@
 - Все готово! Можете пользоваться!
 ## INCY
 - Тут все чуть сложнее. Перейдите в настройки.
-<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/1734182f-ee59-447d-b764-af75a46751ba" />
+<img width="289" height="640" alt="Image" src="https://github.com/user-attachments/assets/6519eddb-65e9-4ed6-acfc-6e9d2b5f0d8e" />
 
 - Нам понадобятся оба выделенных пункта. Начнём с "Прокси по приложениям".
 - Включаем его, выбираем режим "Обход" и выбираем приложения, которые не должны работать через впн(Обязательно ВСЕ приложения ру сегмента).
