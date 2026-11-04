@@ -1,6 +1,9 @@
 
 package com.example.vpintaly;
 
+import android.content.ClipData;
+import android.content.ClipboardManager;
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -9,6 +12,8 @@ import android.os.Bundle;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
+import android.webkit.WebSettings;
+import android.webkit.WebView;
 import android.widget.Button;
 import android.widget.EditText;
 import android.widget.FrameLayout;
@@ -177,8 +182,10 @@ public class MainActivity extends AppCompatActivity {
             } else if (id == R.id.nav_sett) {
                 showSettings();
             } else if (id == R.id.nav_about) {
-                    showAbout();
-                }
+                showAbout();
+            } else if (id == R.id.nav_test) {
+                showSpeedTest();
+            }
 
             drawerLayout.closeDrawer(Gravity.LEFT);
             return true;
@@ -187,6 +194,21 @@ public class MainActivity extends AppCompatActivity {
         navigationView.setCheckedItem(R.id.nav_home);
         showHome();
         addLog("INFO", "Приложение запущено.");
+    }
+
+    @Override
+    protected void onDestroy() {
+        WebView myWebView = new WebView(this);
+        if (myWebView != null) {
+            if (myWebView.getParent() instanceof ViewGroup) {
+                ((ViewGroup) myWebView.getParent()).removeView(myWebView);
+            }
+            myWebView.stopLoading();
+            myWebView.clearHistory();
+            myWebView.destroy();
+        }
+        myWebView = null;
+        super.onDestroy();
     }
 
     private void showHome() {
@@ -493,6 +515,23 @@ public class MainActivity extends AppCompatActivity {
         typeView.setTextColor(getColor(R.color.vp_accent));
         typeView.setTypeface(null, Typeface.BOLD);
         typeView.setWidth(dp(70));
+
+        typeView.setOnClickListener(v -> {
+            try {
+                ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+                ClipData clip = ClipData.newPlainText("Copied Text", config);
+
+                if (clipboard != null) {
+                    clipboard.setPrimaryClip(clip);
+
+                    Toast.makeText(getApplicationContext(), "Текст скопирован в буфер", Toast.LENGTH_SHORT).show();
+                }
+            } catch (Exception x){
+                Toast.makeText(getApplicationContext(), "Не удалось скопировать текст в буффер обмена.", Toast.LENGTH_SHORT).show();
+                addLog("ERROR", "Ошибка копирования в буффер обмена: " + x);
+            }
+        });
+
         row.addView(typeView);
 
         TextView linkView = new TextView(this);
@@ -1205,11 +1244,26 @@ public class MainActivity extends AppCompatActivity {
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT));
     }
+
+    private void showSpeedTest(){
+        toolbarTitle.setText("SpeedTest");
+        contentFrame.removeAllViews();
+
+        WebView webView = new WebView(this);
+        WebSettings webSettings = webView.getSettings();
+        webSettings.setJavaScriptEnabled(true);
+        webView.loadUrl("https://librespeed.org/");
+
+        contentFrame.addView(webView,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT));
+    }
     private void showAbout(){
         toolbarTitle.setText("О проекте");
         contentFrame.removeAllViews();
 
-        String versionName = "1.0";
+        String versionName = "";
 
         try {
             android.content.pm.PackageInfo info =
@@ -1224,17 +1278,25 @@ public class MainActivity extends AppCompatActivity {
                 ? "Подключение сохранено на устройстве"
                 : "Не подключено";
 
-        String aboutText =
-                "Vpintaly\n\n"
-                       + "Версия приложения: " + versionName + "\n\n"
-                       + "Язык разработки: Java\n"
-                        + "Версия Java: 21\n"
-                       + "Минимальная версия Android: 8.0\n\n"
-                       + "Статус Google: " + googleStatus + "\n\n"
-                       + "Доступ к Google Docs предоставляется через авторизацию Google.\n\n"
-                       + "Бесопасен! Зуб дай!";
+        TextView textView = new TextView(this);
+        textView.setText("Vpintaly\n\n"
+                + "Версия приложения: " + versionName + "\n\n"
+                + "Язык разработки: Java\n"
+                + "Версия Java: 21\n"
+                + "Минимальная версия Android: 8.0\n\n"
+                + "Статус Google: " + googleStatus + "\n\n"
+                + "Доступ к Google Docs предоставляется через авторизацию Google.\n\n"
+                + "Бесопасен! Зуб дай!");
+        textView.setTextColor(getColor(R.color.vp_text_secondary));
+        textView.setTextSize(17);
+        textView.setGravity(Gravity.TOP | Gravity.START);
+        textView.setPadding(dp(20), dp(24), dp(20), dp(20));
+        textView.setBackgroundColor(getColor(R.color.vp_bg));
 
-        showSection("О проекте", aboutText);
+        contentFrame.addView(textView,
+                new FrameLayout.LayoutParams(
+                        FrameLayout.LayoutParams.MATCH_PARENT,
+                        FrameLayout.LayoutParams.MATCH_PARENT));
     }
 
     private void validateDocumentUrl() {
@@ -1341,11 +1403,6 @@ public class MainActivity extends AppCompatActivity {
                             addLog("WARNING",
                                     "Подключение Google повторно: токен истёк.");
                             connectGoogle();
-                            try {
-                                Thread.sleep(2000);
-                            } catch (InterruptedException e) {
-                            }
-                            loadGoogleDocument(documentId);
                         } else if (status == 403) {
                             addLog("WARNING",
                                     "Нет доступа к документу или API не включён.");
@@ -1510,8 +1567,6 @@ public class MainActivity extends AppCompatActivity {
         preferences.edit()
                 .putString("saved_document_url", value)
                 .apply();
-
-        addLog("INFO", "Ссылка на Google Docs сохранена.");
     }
     private String loadDocumentUrl() {
         return preferences.getString("saved_document_url", "");
@@ -1652,23 +1707,23 @@ public class MainActivity extends AppCompatActivity {
                         + ", удалённых: " + removed);
     }
 
-    private void showSection(String title, String description) {
-        toolbarTitle.setText(title);
-        contentFrame.removeAllViews();
+    //private void showSection(String title, String description) {
+    //    toolbarTitle.setText(title);
+    //    contentFrame.removeAllViews();
 
-        TextView textView = new TextView(this);
-        textView.setText(description);
-        textView.setTextColor(getColor(R.color.vp_text_secondary));
-        textView.setTextSize(17);
-        textView.setGravity(Gravity.TOP | Gravity.START);
-        textView.setPadding(dp(20), dp(24), dp(20), dp(20));
-        textView.setBackgroundColor(getColor(R.color.vp_bg));
+    //    TextView textView = new TextView(this);
+    //    textView.setText(description);
+    //    textView.setTextColor(getColor(R.color.vp_text_secondary));
+    //    textView.setTextSize(17);
+    //    textView.setGravity(Gravity.TOP | Gravity.START);
+    //    textView.setPadding(dp(20), dp(24), dp(20), dp(20));
+    //    textView.setBackgroundColor(getColor(R.color.vp_bg));
 
-        contentFrame.addView(textView,
-                new FrameLayout.LayoutParams(
-                        FrameLayout.LayoutParams.MATCH_PARENT,
-                        FrameLayout.LayoutParams.MATCH_PARENT));
-    }
+    //    contentFrame.addView(textView,
+    //            new FrameLayout.LayoutParams(
+    //                    FrameLayout.LayoutParams.MATCH_PARENT,
+    //                    FrameLayout.LayoutParams.MATCH_PARENT));
+    //}
 
     private GradientDrawable makeBackground(
             int fillColor, int strokeColor, int radiusDp) {
