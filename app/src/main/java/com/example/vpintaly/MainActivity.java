@@ -1,24 +1,33 @@
 
 package com.example.vpintaly;
 
+import android.app.AlertDialog;
+import android.content.ActivityNotFoundException;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
+import android.content.Intent;
+import android.content.pm.PackageInfo;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.FrameLayout;
 import android.widget.ImageButton;
 import android.widget.LinearLayout;
+import android.widget.RadioButton;
+import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
@@ -37,6 +46,7 @@ import com.google.android.gms.common.api.Scope;
 
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.graphics.Insets;
 import androidx.core.view.ViewCompat;
 import androidx.core.view.WindowCompat;
 import androidx.core.view.WindowInsetsCompat;
@@ -46,16 +56,35 @@ import androidx.drawerlayout.widget.DrawerLayout;
 import com.google.android.material.navigation.NavigationView;
 
 import org.json.JSONArray;
+import org.json.JSONException;
 import org.json.JSONObject;
 
 import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
+import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Date;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class MainActivity extends AppCompatActivity {
 
@@ -67,8 +96,8 @@ public class MainActivity extends AppCompatActivity {
     private ActivityResultLauncher<IntentSenderRequest> authorizationLauncher;
     private SharedPreferences preferences;
 
-    private final java.util.List<String> logEntries =
-            new java.util.ArrayList<>();
+    private final List<String> logEntries =
+            new ArrayList<>();
 
     private String googleAccessToken;
     private TextView logTextView;
@@ -142,7 +171,7 @@ public class MainActivity extends AppCompatActivity {
         ViewCompat.setOnApplyWindowInsetsListener(
                 mainContent,
                 (view, insets) -> {
-                    androidx.core.graphics.Insets bars =
+                    Insets bars =
                             insets.getInsets(
                                     WindowInsetsCompat.Type.statusBars());
 
@@ -192,6 +221,8 @@ public class MainActivity extends AppCompatActivity {
             });
 
         navigationView.setCheckedItem(R.id.nav_home);
+        checkLatestVersion();
+        //update("");
         showHome();
         addLog("INFO", "Приложение запущено.");
     }
@@ -239,29 +270,6 @@ public class MainActivity extends AppCompatActivity {
         subtitle1.setPadding(0, dp(6), 0, dp(8));
         layout.addView(subtitle1);
 
-        Button googleButton = new Button(this);
-        googleButton.setText(
-                isGoogleConnected()
-                        ? "Подключить Google повторно"
-                        : "Подключить Google");
-        googleButton.setAllCaps(false);
-        googleButton.setTextSize(12);
-        googleButton.setTextColor(getColor(R.color.vp_text));
-        googleButton.setBackground(makeBackground(
-                getColor(R.color.vp_surface),
-                getColor(R.color.vp_border),
-                12));
-
-        LinearLayout.LayoutParams googleParams =
-                new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        dp(37));
-        googleParams.topMargin = dp(12);
-
-        layout.addView(googleButton, googleParams);
-
-        googleButton.setOnClickListener(v -> connectGoogle());
-
         TextView subtitle = new TextView(this);
         subtitle.setText("");
         subtitle.setTextColor(getColor(R.color.vp_text_secondary));
@@ -284,8 +292,8 @@ public class MainActivity extends AppCompatActivity {
                 getColor(R.color.vp_text_secondary));
         documentUrlInput.setHint("https://docs.google.com/document/d/...");
         documentUrlInput.setInputType(
-                android.text.InputType.TYPE_CLASS_TEXT
-                        | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+                InputType.TYPE_CLASS_TEXT
+                        | InputType.TYPE_TEXT_VARIATION_URI);
         documentUrlInput.setPadding(
                 dp(14), dp(14), dp(14), dp(14));
         documentUrlInput.setBackground(makeBackground(
@@ -305,23 +313,6 @@ public class MainActivity extends AppCompatActivity {
         }
         layout.addView(documentUrlInput, inputParams);
 
-        Button checkButton = new Button(this);
-        checkButton.setText("Проверить статус конфигураций");
-        checkButton.setAllCaps(false);
-        checkButton.setTextSize(16);
-        checkButton.setTextColor(Color.WHITE);
-        checkButton.setBackground(makeBackground(
-                getColor(R.color.vp_surface),
-                getColor(R.color.vp_border),
-                12));
-
-        LinearLayout.LayoutParams buttonParams =
-                new LinearLayout.LayoutParams(
-                        ViewGroup.LayoutParams.MATCH_PARENT,
-                        dp(44));
-        buttonParams.topMargin = dp(16);
-        layout.addView(checkButton, buttonParams);
-
         Button sendConfigsButton = new Button(this);
         sendConfigsButton.setText("Передать конфигурации в VPN");
         sendConfigsButton.setAllCaps(false);
@@ -340,8 +331,7 @@ public class MainActivity extends AppCompatActivity {
 
         layout.addView(sendConfigsButton, sendParams);
 
-        sendConfigsButton.setOnClickListener(v ->
-                sendConfigsToVpnClient());
+        sendConfigsButton.setOnClickListener(v -> validateDocumentUrl());
 
         TextView journalHeading = new TextView(this);
         journalHeading.setText("Журнал");
@@ -373,8 +363,6 @@ public class MainActivity extends AppCompatActivity {
         layout.addView(homeLogText, homeLogParams);
         homeLogTextView = homeLogText;
         updateHomeLog(homeLogTextView);
-
-        checkButton.setOnClickListener(v -> validateDocumentUrl());
 
         contentFrame.addView(scrollView,
                 new FrameLayout.LayoutParams(
@@ -439,16 +427,16 @@ public class MainActivity extends AppCompatActivity {
 
         table.addView(header);
 
-        java.util.List<String> configs = loadSavedConfigs();
+        List<String> configs = loadSavedConfigs();
         String deviceJson = preferences.getString(
                 KEY_DEVICE_CONFIGS_JSON, "{}");
 
         org.json.JSONObject deviceConfigs;
 
         try {
-            deviceConfigs = new org.json.JSONObject(deviceJson);
-        } catch (org.json.JSONException e) {
-            deviceConfigs = new org.json.JSONObject();
+            deviceConfigs = new JSONObject(deviceJson);
+        } catch (JSONException e) {
+            deviceConfigs = new JSONObject();
         }
 
         if (configs.isEmpty()) {
@@ -494,10 +482,10 @@ public class MainActivity extends AppCompatActivity {
                 KEY_DEVICE_CONFIGS_JSON, "{}");
 
         try {
-            org.json.JSONObject deviceConfigs =
-                    new org.json.JSONObject(deviceJson);
+            JSONObject deviceConfigs =
+                    new JSONObject(deviceJson);
 
-            java.util.Iterator<String> keys = deviceConfigs.keys();
+            Iterator<String> keys = deviceConfigs.keys();
 
             while (keys.hasNext()) {
                 String key = keys.next();
@@ -507,7 +495,7 @@ public class MainActivity extends AppCompatActivity {
                     break;
                 }
             }
-        } catch (org.json.JSONException ignored) {
+        } catch (JSONException ignored) {
         }
 
         TextView typeView = new TextView(this);
@@ -515,6 +503,7 @@ public class MainActivity extends AppCompatActivity {
         typeView.setTextColor(getColor(R.color.vp_accent));
         typeView.setTypeface(null, Typeface.BOLD);
         typeView.setWidth(dp(70));
+        typeView.setPaintFlags(Paint.UNDERLINE_TEXT_FLAG);
 
         typeView.setOnClickListener(v -> {
             try {
@@ -543,10 +532,10 @@ public class MainActivity extends AppCompatActivity {
         String status = "Без изменений";
 
         try {
-            org.json.JSONObject statuses =
-                    new org.json.JSONObject(statusesJson);
+            JSONObject statuses =
+                    new JSONObject(statusesJson);
             status = statuses.optString(config, "Без изменений");
-        } catch (org.json.JSONException ignored) {
+        } catch (JSONException ignored) {
         }
 
         linkView.setText(
@@ -569,26 +558,26 @@ public class MainActivity extends AppCompatActivity {
         int separator = config.indexOf("://");
 
         if (separator <= 0) {
-            return "Другое";
+            return "ERR";
         }
 
         return config.substring(0, separator)
-                .toUpperCase(java.util.Locale.ROOT);
+                .toUpperCase(Locale.ROOT);
     }
-    private java.util.Set<String> getSentConfigs(String clientId) {
-        return new java.util.HashSet<>(
+    private Set<String> getSentConfigs(String clientId) {
+        return new HashSet<>(
                 preferences.getStringSet(
                         KEY_CONFIGS_SENT_PREFIX + clientId,
-                        new java.util.HashSet<>()));
+                        new HashSet<>()));
     }
 
-    private java.util.List<String> loadSavedConfigs() {
-        java.util.List<String> configs = new java.util.ArrayList<>();
+    private List<String> loadSavedConfigs() {
+        List<String> configs = new ArrayList<>();
 
         String json = preferences.getString(KEY_CONFIGS_JSON, "[]");
 
         try {
-            org.json.JSONArray array = new org.json.JSONArray(json);
+            JSONArray array = new JSONArray(json);
 
             for (int i = 0; i < array.length(); i++) {
                 String config = array.optString(i, "");
@@ -597,7 +586,7 @@ public class MainActivity extends AppCompatActivity {
                     configs.add(config);
                 }
             }
-        } catch (org.json.JSONException e) {
+        } catch (JSONException e) {
             addLog("ERROR", "Не удалось прочитать сохранённые конфигурации.");
         }
 
@@ -607,21 +596,22 @@ public class MainActivity extends AppCompatActivity {
         String json = preferences.getString(KEY_DEVICE_CONFIGS_JSON, "{}");
 
         try {
-            org.json.JSONObject object = new org.json.JSONObject(json);
+            JSONObject object = new JSONObject(json);
             return object.optString(deviceNumber, "");
-        } catch (org.json.JSONException e) {
+        } catch (JSONException e) {
             addLog("ERROR", "Не удалось прочитать конфигурацию AmneziaVPN.");
             return "";
         }
     }
-    private java.util.List<String> loadV2Configs() {
-        java.util.List<String> result = new java.util.ArrayList<>();
+    private List<String> loadV2Configs() {
+        List<String> result = new ArrayList<>();
 
         for (String config : loadSavedConfigs()) {
-            String lower = config.trim().toLowerCase(java.util.Locale.ROOT);
+            String lower = config.trim().toLowerCase(Locale.ROOT);
 
             if (lower.startsWith("vless://")
                     || lower.startsWith("vmess://")
+                    || lower.startsWith("https://")
                     || lower.startsWith("ss://")
                     || lower.startsWith("trojan://")) {
                 result.add(config);
@@ -630,10 +620,10 @@ public class MainActivity extends AppCompatActivity {
 
         return result;
     }
-    private java.util.List<String> loadUnsentV2Configs() {
-        java.util.List<String> unsent = new java.util.ArrayList<>();
+    private List<String> loadUnsentV2Configs() {
+        List<String> unsent = new ArrayList<>();
 
-        java.util.Set<String> sent = getSentConfigs(
+        Set<String> sent = getSentConfigs(
                 getSelectedVpnClient()
         );
 
@@ -645,10 +635,10 @@ public class MainActivity extends AppCompatActivity {
 
         return unsent;
     }
-    private java.util.List<String> loadUnsentAmneziaConfigs(
+    private List<String> loadUnsentAmneziaConfigs(
             String deviceNumber) {
 
-        java.util.List<String> result = new java.util.ArrayList<>();
+        List<String> result = new ArrayList<>();
 
         String config = loadAmneziaConfig(deviceNumber);
 
@@ -656,7 +646,7 @@ public class MainActivity extends AppCompatActivity {
             return result;
         }
 
-        java.util.Set<String> sent = getSentConfigs("AmneziaVPN");
+        Set<String> sent = getSentConfigs("AmneziaVPN");
 
         if (!sent.contains(config)) {
             result.add(config);
@@ -669,9 +659,9 @@ public class MainActivity extends AppCompatActivity {
     }
     private void markConfigsAsSent(
             String clientId,
-            java.util.List<String> configs) {
+            List<String> configs) {
 
-        java.util.Set<String> sent = getSentConfigs(clientId);
+        Set<String> sent = getSentConfigs(clientId);
         sent.addAll(configs);
 
         preferences.edit()
@@ -679,89 +669,56 @@ public class MainActivity extends AppCompatActivity {
                         KEY_CONFIGS_SENT_PREFIX + clientId,
                         sent).apply();
     }
-    private void sendToV2RayTun(java.util.List<String> configs) {
+
+    private void sendToXray(List<String> configs, String selectedClient){
         if (configs.isEmpty()) {
             Toast.makeText(this,
-                    "Нет новых или изменённых конфигураций",
+                    "Нет новых или изменённых конфигураций для передачи",
                     Toast.LENGTH_SHORT).show();
             return;
         }
 
-        java.util.List<String> sentNow = new java.util.ArrayList<>();
+        List<String> sentNow = new ArrayList<>();
+        String url = "";
+        if ("V2RayTun".equals(selectedClient)) url = "v2raytun://import/";
+        if ("V2Box".equals(selectedClient)) url = "v2box://install-sub?url=";
+        if ("V2RayNG".equals(selectedClient)) url = "v2rayng://install-config?url=";
+        if ("INCY".equals(selectedClient)) url = "incy://add/";
 
-        for (String config : configs) {
+        for (String config : configs){
             try {
-                android.content.Intent intent = new android.content.Intent(
-                        android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse("v2raytun://import/" + config));
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url + config));
 
                 startActivity(intent);
                 sentNow.add(config);
-
-            } catch (android.content.ActivityNotFoundException e) {
+            } catch(ActivityNotFoundException e){
                 Toast.makeText(this,
-                        "V2RayTun не найден на устройстве",
+                        "Выбранный Xray клиент не найден на устройстве",
                         Toast.LENGTH_LONG).show();
                 break;
             }
         }
 
-        markConfigsAsSent("V2RayTun", sentNow);
-    }
-
-    private void sentTunToXray(){
-
-    }
-    private void sendToINCY(java.util.List<String> configs) {
-        if (configs.isEmpty()) {
-            Toast.makeText(this,
-                    "Нет новых или изменённых конфигураций",
-                    Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        java.util.List<String> sentNow = new java.util.ArrayList<>();
-
-        for (String config : configs) {
-            try {
-                android.content.Intent intent = new android.content.Intent(
-                        android.content.Intent.ACTION_VIEW,
-                        android.net.Uri.parse("incy://add/" + config));
-
-                startActivity(intent);
-                sentNow.add(config);
-
-            } catch (android.content.ActivityNotFoundException e) {
-                Toast.makeText(this,
-                        "INCY не найден на устройстве",
-                        Toast.LENGTH_LONG).show();
-                break;
-            }
-        }
-
-        markConfigsAsSent("INCY", sentNow);
+        markConfigsAsSent(selectedClient, sentNow);
     }
     private void sendToAmnezia(String config) {
         if (config == null || config.trim().isEmpty()) {
             Toast.makeText(this,
-                    "Конфигурация AmneziaVPN не найдена",
+                    "Нет новых или измененных конфигураций AmneziaVPN для передачи",
                     Toast.LENGTH_LONG).show();
             return;
         }
 
         try {
-            android.content.Intent intent = new android.content.Intent(
-                    android.content.Intent.ACTION_VIEW,
-                    android.net.Uri.parse(config));
+            Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(config));
 
             intent.setPackage("org.amnezia.vpn");
             startActivity(intent);
 
-            markConfigsAsSent(
-                    "AmneziaVPN",
-                    java.util.Collections.singletonList(config));
+            markConfigsAsSent("AmneziaVPN",
+                    Collections.singletonList(config));
 
-        } catch (android.content.ActivityNotFoundException e) {
+        } catch (ActivityNotFoundException e) {
             Toast.makeText(this,
                     "AmneziaVPN не найден или не поддерживает импорт",
                     Toast.LENGTH_LONG).show();
@@ -781,19 +738,13 @@ public class MainActivity extends AppCompatActivity {
     private void sendConfigsToVpnClient() {
         String selectedClient = getSelectedVpnClient();
 
-        // Передача конфигураций в V2-клиент
-        if ("V2RayTun".equals(selectedClient)) {
-            java.util.List<String> configs = loadUnsentV2Configs();
-            sendToV2RayTun(configs);
-
-        } else if ("INCY".equals(selectedClient)) {
-            java.util.List<String> configs = loadUnsentV2Configs();
-            sendToINCY(configs);
-        }
-
-        // Передача конфигурации в AmneziaVPN — независимо от V2-клиента
         boolean amneziaEnabled = preferences.getBoolean(
                 KEY_AMNEZIA_ENABLED, false);
+
+        if (!"NONE".equals(selectedClient)) {
+            List<String> configs = loadUnsentV2Configs();
+            sendToXray(configs, selectedClient);
+        }
 
         if (amneziaEnabled) {
             String deviceNumber = preferences.getString(
@@ -815,7 +766,7 @@ public class MainActivity extends AppCompatActivity {
                 return;
             }
 
-            java.util.List<String> unsentAmnezia =
+            List<String> unsentAmnezia =
                     loadUnsentAmneziaConfigs(deviceNumber);
 
             if (!unsentAmnezia.isEmpty()) {
@@ -828,8 +779,8 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
-    private void saveConfigs(java.util.List<String> configs) {
-        org.json.JSONArray array = new org.json.JSONArray();
+    private void saveConfigs(List<String> configs) {
+        JSONArray array = new JSONArray();
 
         for (String config : configs) {
             array.put(config);
@@ -862,10 +813,10 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void addLog(String level, String message) {
-        String time = new java.text.SimpleDateFormat(
+        String time = new SimpleDateFormat(
                 "HH:mm:ss",
-                java.util.Locale.getDefault()
-        ).format(new java.util.Date());
+                Locale.getDefault()
+        ).format(new Date());
 
         String entry = time + " [" + level + "] " + message;
         logEntries.add(entry);
@@ -918,14 +869,14 @@ public class MainActivity extends AppCompatActivity {
         toolbarTitle.setText("Поддержка");
         contentFrame.removeAllViews();
 
-        android.widget.ScrollView scrollView =
-                new android.widget.ScrollView(this);
+        ScrollView scrollView =
+                new ScrollView(this);
         scrollView.setFillViewport(true);
         scrollView.setBackgroundColor(getColor(R.color.vp_bg));
 
-        android.widget.LinearLayout layout =
-                new android.widget.LinearLayout(this);
-        layout.setOrientation(android.widget.LinearLayout.VERTICAL);
+        LinearLayout layout =
+                new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
         layout.setPadding(dp(20), dp(24), dp(20), dp(28));
 
         scrollView.addView(layout);
@@ -934,7 +885,7 @@ public class MainActivity extends AppCompatActivity {
         heading.setText("Поддержка Vpintaly");
         heading.setTextColor(getColor(R.color.vp_text));
         heading.setTextSize(25);
-        heading.setTypeface(null, android.graphics.Typeface.BOLD);
+        heading.setTypeface(null, Typeface.BOLD);
         layout.addView(heading);
 
         TextView description = new TextView(this);
@@ -946,8 +897,8 @@ public class MainActivity extends AppCompatActivity {
         description.setPadding(0, dp(10), 0, dp(24));
         layout.addView(description);
 
-        android.widget.LinearLayout card = new android.widget.LinearLayout(this);
-        card.setOrientation(android.widget.LinearLayout.VERTICAL);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(16), dp(16), dp(16), dp(16));
         card.setBackground(makeBackground(
                 getColor(R.color.vp_surface),
@@ -958,7 +909,7 @@ public class MainActivity extends AppCompatActivity {
         linkTitle.setText("Документ поддержки");
         linkTitle.setTextColor(getColor(R.color.vp_text));
         linkTitle.setTextSize(18);
-        linkTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        linkTitle.setTypeface(null, Typeface.BOLD);
         card.addView(linkTitle);
 
         TextView link = new TextView(this);
@@ -966,6 +917,7 @@ public class MainActivity extends AppCompatActivity {
         link.setTextColor(getColor(R.color.vp_accent));
         link.setTextSize(16);
         link.setPadding(0, dp(12), 0, 0);
+        link.setPaintFlags(Paint.UNDERLINE_TEXT_FLAG);
 
         String documentUrl = preferences.getString("saved_document_url", "");
 
@@ -973,16 +925,13 @@ public class MainActivity extends AppCompatActivity {
                 documentUrl.trim().startsWith("https://docs.google.com/document/d/")) {
             link.setOnClickListener(v -> {
                 try {
-                    android.content.Intent intent =
-                            new android.content.Intent(
-                                    android.content.Intent.ACTION_VIEW,
-                                    android.net.Uri.parse(documentUrl.trim()));
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(documentUrl.trim()));
                     startActivity(intent);
-                } catch (android.content.ActivityNotFoundException e) {
-                    android.widget.Toast.makeText(
+                } catch (ActivityNotFoundException e) {
+                    Toast.makeText(
                             this,
                             "Не удалось открыть документ, возможно введена нерабочая ссылка",
-                            android.widget.Toast.LENGTH_LONG).show();
+                            Toast.LENGTH_LONG).show();
                 }
             });
         } else {
@@ -992,10 +941,9 @@ public class MainActivity extends AppCompatActivity {
 
         card.addView(link);
 
-        android.widget.LinearLayout.LayoutParams cardParams =
-                new android.widget.LinearLayout.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
         layout.addView(card, cardParams);
 
         contentFrame.addView(scrollView,
@@ -1032,8 +980,8 @@ public class MainActivity extends AppCompatActivity {
         subtitle.setPadding(0, dp(6), 0, dp(16));
         layout.addView(subtitle);
 
-        android.widget.LinearLayout card = new android.widget.LinearLayout(this);
-        card.setOrientation(android.widget.LinearLayout.VERTICAL);
+        LinearLayout card = new LinearLayout(this);
+        card.setOrientation(LinearLayout.VERTICAL);
         card.setPadding(dp(16), dp(16), dp(16), dp(16));
         card.setBackground(makeBackground(
                 getColor(R.color.vp_surface),
@@ -1044,37 +992,35 @@ public class MainActivity extends AppCompatActivity {
         linkTitle.setText("Если вы ещё не настроили Раздельное Туннелирование в приложении, ОБЯЗАТЕЛЬНО настройте его по гайду ниже");
         linkTitle.setTextColor(getColor(R.color.vp_text));
         linkTitle.setTextSize(18);
-        linkTitle.setTypeface(null, android.graphics.Typeface.BOLD);
+        linkTitle.setTypeface(null, Typeface.BOLD);
         card.addView(linkTitle);
 
         TextView link = new TextView(this);
         link.setText("Настройка р.т. для приложений/сайтов");
         link.setTextColor(getColor(R.color.vp_accent));
         link.setTextSize(16);
+        link.setPaintFlags(Paint.UNDERLINE_TEXT_FLAG);
         link.setPadding(0, dp(12), 0, 0);
 
         link.setOnClickListener(v -> {
             try {
-                android.content.Intent intent =
-                        new android.content.Intent(
-                                android.content.Intent.ACTION_VIEW,
-                                android.net.Uri.parse(
-                                        "https://github.com/Aracamba/Vpintaly/blob/master/split_tunneling.md".trim()));
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(
+                                        "https://github.com/Aracamba/Vpintaly/blob/master/split_tunneling.md"));
                 startActivity(intent);
-            } catch (android.content.ActivityNotFoundException e) {
-                android.widget.Toast.makeText(
+            } catch (ActivityNotFoundException e) {
+                Toast.makeText(
                         this,
                         "Не удалось открыть документ",
-                        android.widget.Toast.LENGTH_LONG).show();
+                        Toast.LENGTH_LONG).show();
             }
         });
 
         card.addView(link);
 
-        android.widget.LinearLayout.LayoutParams cardParams =
-                new android.widget.LinearLayout.LayoutParams(
-                        android.view.ViewGroup.LayoutParams.MATCH_PARENT,
-                        android.view.ViewGroup.LayoutParams.WRAP_CONTENT);
+        LinearLayout.LayoutParams cardParams =
+                new LinearLayout.LayoutParams(
+                        ViewGroup.LayoutParams.MATCH_PARENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT);
         layout.addView(card, cardParams);
 
         // Настройки VPN-клиента
@@ -1091,41 +1037,53 @@ public class MainActivity extends AppCompatActivity {
         vpnHeadingParams.topMargin = dp(24);
         layout.addView(vpnHeading, vpnHeadingParams);
 
-        android.widget.RadioGroup vpnGroup =
-                new android.widget.RadioGroup(this);
-        vpnGroup.setOrientation(android.widget.RadioGroup.VERTICAL);
+        RadioGroup vpnGroup = new RadioGroup(this);
+        vpnGroup.setOrientation(RadioGroup.VERTICAL);
 
-        android.widget.RadioButton Nov2Button =
-                new android.widget.RadioButton(this);
+        RadioButton Nov2Button = new RadioButton(this);
         Nov2Button.setText("Отсутствует клиент Xray");
         Nov2Button.setTextColor(getColor(R.color.vp_text));
         Nov2Button.setId(View.generateViewId());
 
-        android.widget.RadioButton v2rayButton =
-                new android.widget.RadioButton(this);
+        RadioButton v2rayButton = new RadioButton(this);
         v2rayButton.setText("V2RayTun");
         v2rayButton.setTextColor(getColor(R.color.vp_text));
         v2rayButton.setId(View.generateViewId());
 
-        android.widget.RadioButton IncyButton =
-                new android.widget.RadioButton(this);
+        RadioButton IncyButton = new RadioButton(this);
         IncyButton.setText("INCY");
         IncyButton.setTextColor(getColor(R.color.vp_text));
         IncyButton.setId(View.generateViewId());
 
+        RadioButton v2boxButton = new RadioButton(this);
+        v2boxButton.setText("V2Box");
+        v2boxButton.setTextColor(getColor(R.color.vp_text));
+        v2boxButton.setId(View.generateViewId());
+
+        RadioButton v2rayngButton = new RadioButton(this);
+        v2rayngButton.setText("V2RayNG");
+        v2rayngButton.setTextColor(getColor(R.color.vp_text));
+        v2rayngButton.setId(View.generateViewId());
+
         vpnGroup.addView(Nov2Button);
         vpnGroup.addView(v2rayButton);
         vpnGroup.addView(IncyButton);
+        vpnGroup.addView(v2boxButton);
+        vpnGroup.addView(v2rayngButton);
 
         String savedClient = preferences.getString(
                 KEY_VPN_CLIENT, "NONE");
 
-        if ("V2Box".equals(savedClient)) {
+        if ("INCY".equals(savedClient)) {
             vpnGroup.check(IncyButton.getId());
-        } else if ("NONE".equals(savedClient)) {
-            vpnGroup.check(Nov2Button.getId());
-        } else {
+        } else if ("V2Box".equals(savedClient)) {
+            vpnGroup.check(v2boxButton.getId());
+        } else if ("V2RayTun".equals(savedClient)) {
             vpnGroup.check(v2rayButton.getId());
+        } else if ("V2RayNG".equals(savedClient)) {
+            vpnGroup.check(v2rayngButton.getId());
+        } else {
+            vpnGroup.check(Nov2Button.getId());
         }
 
         vpnGroup.setOnCheckedChangeListener((group, checkedId) -> {
@@ -1133,10 +1091,14 @@ public class MainActivity extends AppCompatActivity {
 
             if (checkedId == IncyButton.getId()) {
                 client = "INCY";
-            } else if (checkedId == Nov2Button.getId()) {
-                client = "NONE";
-            } else {
+            } else if (checkedId == v2rayButton.getId()) {
                 client = "V2RayTun";
+            } else if (checkedId == v2boxButton.getId()) {
+                client = "V2Box";
+            } else if (checkedId == v2rayngButton.getId()) {
+                client = "V2RayNG";
+            } else {
+                client = "NONE";
             }
 
             preferences.edit()
@@ -1146,16 +1108,8 @@ public class MainActivity extends AppCompatActivity {
 
         layout.addView(vpnGroup);
 
-        TextView v2box = new TextView(this);
-        v2box.setText("Клиент V2box не поддерживает передачу конфигов. Если вы им пользуетесь, вставьте в него конфиги вручную");
-        v2box.setTextColor(getColor(R.color.vp_text_secondary));
-        v2box.setTextSize(10);
-        v2box.setPadding(0, dp(10), 0, dp(12));
-        layout.addView(v2box);
-
 // Независимый переключатель AmneziaVPN
-        android.widget.CheckBox amneziaCheckBox =
-                new android.widget.CheckBox(this);
+        CheckBox amneziaCheckBox = new CheckBox(this);
         amneziaCheckBox.setText("Использовать AmneziaVPN");
         amneziaCheckBox.setTextColor(getColor(R.color.vp_text));
 
@@ -1169,7 +1123,7 @@ public class MainActivity extends AppCompatActivity {
         clearAmneziaButton.setText("Сбросить устройство AmneziaVPN");
 
         clearAmneziaButton.setOnClickListener(v -> {
-            new android.app.AlertDialog.Builder(this)
+            new AlertDialog.Builder(this)
                     .setTitle("Сброс утройства AmneziaVPN")
                     .setMessage("Сбросить устройство AmneziaVPN?")
                     .setPositiveButton("Сбросить", (dialog, which) ->
@@ -1178,9 +1132,9 @@ public class MainActivity extends AppCompatActivity {
                     .show();
         });
         LinearLayout.LayoutParams clearAmneziaParams =
-                new android.widget.LinearLayout.LayoutParams(
-                        android.widget.LinearLayout.LayoutParams.MATCH_PARENT,
-                        android.widget.LinearLayout.LayoutParams.WRAP_CONTENT);
+                new LinearLayout.LayoutParams(
+                        LinearLayout.LayoutParams.MATCH_PARENT,
+                        LinearLayout.LayoutParams.WRAP_CONTENT);
 
         clearAmneziaParams.topMargin = 12;
 
@@ -1195,8 +1149,7 @@ public class MainActivity extends AppCompatActivity {
         amneziaDeviceInput.setTextSize(15);
         amneziaDeviceInput.setTextColor(getColor(R.color.vp_text));
         amneziaDeviceInput.setHint("Поле ввода номера устройства. Например: 2");
-        amneziaDeviceInput.setInputType(
-                android.text.InputType.TYPE_CLASS_NUMBER);
+        amneziaDeviceInput.setInputType(InputType.TYPE_CLASS_NUMBER);
         amneziaDeviceInput.setPadding(
                 dp(14), dp(12), dp(14), dp(12));
         amneziaDeviceInput.setBackground(makeBackground(
@@ -1265,9 +1218,16 @@ public class MainActivity extends AppCompatActivity {
 
         String versionName = "";
 
+        ScrollView scrollView = new ScrollView(this);
+        scrollView.setBackgroundColor(getColor(R.color.vp_bg));
+
+        LinearLayout layout = new LinearLayout(this);
+        layout.setOrientation(LinearLayout.VERTICAL);
+        layout.setPadding(dp(16), dp(20), dp(16), dp(24));
+        scrollView.addView(layout);
+
         try {
-            android.content.pm.PackageInfo info =
-                    getPackageManager().getPackageInfo(getPackageName(), 0);
+            PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
 
             if (info.versionName != null) {
                 versionName = info.versionName;
@@ -1289,11 +1249,25 @@ public class MainActivity extends AppCompatActivity {
                 + "Бесопасен! Зуб дай!");
         textView.setTextColor(getColor(R.color.vp_text_secondary));
         textView.setTextSize(17);
-        textView.setGravity(Gravity.TOP | Gravity.START);
-        textView.setPadding(dp(20), dp(24), dp(20), dp(20));
-        textView.setBackgroundColor(getColor(R.color.vp_bg));
+        layout.addView(textView);
 
-        contentFrame.addView(textView,
+        TextView repos = new TextView(this);
+        repos.setText("\n https://github.com/Aracamba/Vpintaly");
+        repos.setTextColor(getColor(R.color.vp_accent));
+        repos.setTextSize(17);
+        repos.setPaintFlags(Paint.UNDERLINE_TEXT_FLAG);
+
+        repos.setOnClickListener(v -> {
+            try{
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Aracamba/Vpintaly"));
+                startActivity(intent);
+            } catch (ActivityNotFoundException e){
+            }
+        });
+
+        layout.addView(repos);
+
+        contentFrame.addView(scrollView,
                 new FrameLayout.LayoutParams(
                         FrameLayout.LayoutParams.MATCH_PARENT,
                         FrameLayout.LayoutParams.MATCH_PARENT));
@@ -1307,6 +1281,11 @@ public class MainActivity extends AppCompatActivity {
                     this,
                     "Вставь ссылку на Google Docs",
                     Toast.LENGTH_LONG).show();
+            return;
+        }
+
+        if("NONE".equals(getSelectedVpnClient()) && !preferences.getBoolean(KEY_AMNEZIA_ENABLED, false)){
+            Toast.makeText(this, "Не выбрано ни одного VPN клиента", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -1326,17 +1305,6 @@ public class MainActivity extends AppCompatActivity {
             addLog("INFO", "Ссылка была сохранена");
         } else {
             addLog("WARNING", "Ссылка Google Docs имеет неверный формат.");
-        }
-        if (googleAccessToken == null
-                || googleAccessToken.isEmpty()) {
-            addLog("WARNING",
-                    "Для чтения документа сначала подключи Google.");
-
-            Toast.makeText(
-                    this,
-                    "Сначала нажми «Подключить Google»",
-                    Toast.LENGTH_LONG).show();
-            return;
         }
         String[] parts = path.split("/");
         if (parts.length < 4 || parts[3].isEmpty()) {
@@ -1399,10 +1367,10 @@ public class MainActivity extends AppCompatActivity {
                                 "Google Docs API вернул HTTP "
                                         + status + ".");
 
-                        if (status == 401) {
-                            addLog("WARNING",
-                                    "Подключение Google повторно: токен истёк.");
+                        if (status == 401 || googleAccessToken == null || googleAccessToken.isEmpty()) {
                             connectGoogle();
+                            Toast.makeText(this, "Ожидание подключения Google" , Toast.LENGTH_SHORT).show();
+
                         } else if (status == 403) {
                             addLog("WARNING",
                                     "Нет доступа к документу или API не включён.");
@@ -1420,12 +1388,10 @@ public class MainActivity extends AppCompatActivity {
                 StringBuilder text = new StringBuilder();
                 collectDocumentContent(document, text);
 
-                java.util.Map<String, String> deviceConfigs =
-                        extractDeviceConfigs(text.toString());
+                Map<String, String> deviceConfigs = extractDeviceConfigs(text.toString());
 
 // Сохраняем прежнюю синхронизацию общего списка
-                java.util.List<String> links =
-                        extractLinks(text.toString());
+                List<String> links = extractLinks(text.toString());
                 saveConfigs(links);
 
 // Сравниваем конфигурации отдельно по номерам устройств
@@ -1455,7 +1421,7 @@ public class MainActivity extends AppCompatActivity {
     private void collectDocumentContent(
             Object node,
             StringBuilder output
-    ) throws org.json.JSONException {
+    ) throws JSONException {
 
         if (node instanceof JSONObject) {
             JSONObject object = (JSONObject) node;
@@ -1509,10 +1475,7 @@ public class MainActivity extends AppCompatActivity {
 
         AuthorizationRequest request =
                 AuthorizationRequest.builder()
-                        .setRequestedScopes(
-                                java.util.Arrays.asList(
-                                        new Scope(DOCS_SCOPE)
-                                )).build();
+                        .setRequestedScopes(Arrays.asList(new Scope(DOCS_SCOPE))).build();
 
         Identity.getAuthorizationClient(this)
                 .authorize(request)
@@ -1533,7 +1496,6 @@ public class MainActivity extends AppCompatActivity {
                                 "Ошибка подключения Google: "
                                         + error.getMessage()));
     }
-
     private void handleAuthorizationSuccess(AuthorizationResult result) {
         String accessToken = result.getAccessToken();
 
@@ -1550,6 +1512,7 @@ public class MainActivity extends AppCompatActivity {
                 .apply();
 
         addLog("INFO", "Google подключён, токен получен.");
+        validateDocumentUrl();
     }
 
     private boolean isGoogleConnected() {
@@ -1571,16 +1534,14 @@ public class MainActivity extends AppCompatActivity {
     private String loadDocumentUrl() {
         return preferences.getString("saved_document_url", "");
     }
-    private java.util.List<String> extractLinks(String text) {
-        java.util.LinkedHashSet<String> links =
-                new java.util.LinkedHashSet<>();
+    private List<String> extractLinks(String text) {
+        LinkedHashSet<String> links =
+                new LinkedHashSet<>();
 
-        java.util.regex.Pattern pattern =
-                java.util.regex.Pattern.compile(
-                        "(?i)(?:vless|vmess|trojan|ss|vpn)://[^\\s<>\"']+");
+        Pattern pattern = Pattern.compile(
+                        "(?i)(?:vless|vmess|trojan|ss|vpn|https)://[^\\s<>\"']+");
 
-        java.util.regex.Matcher matcher =
-                pattern.matcher(text);
+        Matcher matcher = pattern.matcher(text);
 
         while (matcher.find()) {
             String link = matcher.group().trim();
@@ -1590,23 +1551,21 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        return new java.util.ArrayList<>(links);
+        return new ArrayList<>(links);
     }
-    private java.util.Map<String, String> extractDeviceConfigs(String text) {
-        java.util.Map<String, String> devices =
-                new java.util.LinkedHashMap<>();
+    private Map<String, String> extractDeviceConfigs(String text) {
+        Map<String, String> devices = new LinkedHashMap<>();
 
-        java.util.regex.Pattern pattern =
-                java.util.regex.Pattern.compile(
-                        "(?is)(?:устройство|через)\\s*([\\p{L}\\d]+)\\s*:\\s*(.*?)(?=(?:устройство|через)\\s*[\\p{L}\\d]+\\s*:|$)");
+        Pattern pattern = Pattern.compile(
+                        "(?is)(?:устройство|подписка)\\s*([\\p{L}\\d]+)\\s*:\\s*(.*?)(?=(?:устройство|подписка)\\s*[\\p{L}\\d]+\\s*:|$)");
 
-        java.util.regex.Matcher matcher = pattern.matcher(text);
+        Matcher matcher = pattern.matcher(text);
 
         while (matcher.find()) {
             String deviceNumber = matcher.group(1);
             String block = matcher.group(2);
 
-            java.util.List<String> links = extractLinks(block);
+            List<String> links = extractLinks(block);
 
             if (!links.isEmpty()) {
                 devices.put(deviceNumber, links.get(0));
@@ -1615,26 +1574,22 @@ public class MainActivity extends AppCompatActivity {
 
         return devices;
     }
-    private void compareAndSaveDeviceConfigs(java.util.Map<String, String> newDevices) {
+    private void compareAndSaveDeviceConfigs(Map<String, String> newDevices) {
 
         String savedJson = preferences.getString(
                 KEY_DEVICE_CONFIGS_JSON, "{}");
 
-        java.util.Map<String, String> oldDevices =
-                new java.util.LinkedHashMap<>();
-        org.json.JSONObject statuses = new org.json.JSONObject();
+        Map<String, String> oldDevices = new LinkedHashMap<>();
+        JSONObject statuses = new JSONObject();
 
         try {
-            org.json.JSONObject saved =
-                    new org.json.JSONObject(savedJson);
+            JSONObject saved = new JSONObject(savedJson);
 
-            java.util.Iterator<String> keys = saved.keys();
+            Iterator<String> keys = saved.keys();
 
             while (keys.hasNext()) {
                 String key = keys.next();
-                oldDevices.put(
-                        key,
-                        saved.getString(key));
+                oldDevices.put(key, saved.getString(key));
             }
         } catch (Exception e) {
             addLog("ERROR", "Не удалось прочитать сохранённые устройства.");
@@ -1646,7 +1601,7 @@ public class MainActivity extends AppCompatActivity {
         int unchanged = 0;
         int removed = 0;
 
-        for (java.util.Map.Entry<String, String> entry
+        for (Map.Entry<String, String> entry
                 : newDevices.entrySet()) {
 
             String device = entry.getKey();
@@ -1667,7 +1622,7 @@ public class MainActivity extends AppCompatActivity {
 
             try {
                 statuses.put(config, status);
-            } catch (org.json.JSONException e) {
+            } catch (JSONException e) {
                 addLog("ERROR", "Не удалось сохранить статус конфигурации.");
             }
         }
@@ -1678,15 +1633,15 @@ public class MainActivity extends AppCompatActivity {
             }
         }
 
-        org.json.JSONObject result = new org.json.JSONObject();
+        JSONObject result = new JSONObject();
 
-        for (java.util.Map.Entry<String, String> entry
+        for (Map.Entry<String, String> entry
                 : newDevices.entrySet()) {
             try {
                 result.put(
                         String.valueOf(entry.getKey()),
                         entry.getValue());
-            } catch (org.json.JSONException e) {
+            } catch (JSONException e) {
                 addLog("ERROR", "Не удалось сохранить устройство.");
                 return;
             }
@@ -1705,25 +1660,81 @@ public class MainActivity extends AppCompatActivity {
                         + ", изменённых: " + changed
                         + ", без изменений: " + unchanged
                         + ", удалённых: " + removed);
+
+        sendConfigsToVpnClient();
     }
 
-    //private void showSection(String title, String description) {
-    //    toolbarTitle.setText(title);
-    //    contentFrame.removeAllViews();
+    private void checkLatestVersion() {
+        executor.execute(() -> {
+            HttpURLConnection connection = null;
 
-    //    TextView textView = new TextView(this);
-    //    textView.setText(description);
-    //    textView.setTextColor(getColor(R.color.vp_text_secondary));
-    //    textView.setTextSize(17);
-    //    textView.setGravity(Gravity.TOP | Gravity.START);
-    //    textView.setPadding(dp(20), dp(24), dp(20), dp(20));
-    //    textView.setBackgroundColor(getColor(R.color.vp_bg));
+            try {
+                URL url = new URL("https://api.github.com/repos/aracamba/vpintaly/releases/latest");
 
-    //    contentFrame.addView(textView,
-    //            new FrameLayout.LayoutParams(
-    //                    FrameLayout.LayoutParams.MATCH_PARENT,
-    //                    FrameLayout.LayoutParams.MATCH_PARENT));
-    //}
+                connection = (HttpURLConnection) url.openConnection();
+                connection.setRequestMethod("GET");
+                connection.setConnectTimeout(15000);
+                connection.setReadTimeout(15000);
+                connection.setRequestProperty("Accept", "application/vnd.github+json");
+                connection.setRequestProperty("Vpintaly", "Java-App");
+
+                int status = connection.getResponseCode();
+
+                if (status < 200 || status >= 300) {
+                    runOnUiThread(() -> {
+                        addLog("ERROR",
+                                "Ошибка получения последней версии приложения. Код ошибки: "
+                                        + status + ".");
+                    });
+                    return;
+                }
+
+                BufferedReader reader = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+                String inputLine;
+                StringBuilder content = new StringBuilder();
+                while ((inputLine = reader.readLine()) != null) {
+                    content.append(inputLine);
+                }
+                reader.close();
+                connection.disconnect();
+
+                JSONObject releases = new JSONObject(content.toString());
+
+                String latest = (String) releases.get("tag_name");
+                String versionName = "";
+                try {
+                    PackageInfo info = getPackageManager().getPackageInfo(getPackageName(), 0);
+
+                    if (info.versionName != null) {
+                        versionName = info.versionName;
+                    }
+                } catch (Exception e) {
+                }
+                if (latest != versionName) {
+                    runOnUiThread(() -> update(latest));
+                }
+
+            } catch (Exception e) {
+                runOnUiThread(() -> addLog("ERROR", "Ошибка получения последней версии приложения: "));
+            }
+        });
+    }
+
+    private void update(String latest){
+        AlertDialog.Builder bilder = new AlertDialog.Builder(this)
+                .setTitle("Обнаружена новая версия Vpintaly")
+                .setMessage("Обновить Vpintaly?")
+                .setPositiveButton("Обновить", (dialog, which) -> {
+                    try {
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Aracamba/Vpintaly/releases/download/" + latest + "/vpintaly("+ latest +").apk"));
+                        startActivity(intent);
+                    } catch (ActivityNotFoundException e) {
+                    }
+                })
+                .setNegativeButton("Позже", null);
+        AlertDialog dialog = bilder.create();
+        dialog.show();
+    }
 
     private GradientDrawable makeBackground(
             int fillColor, int strokeColor, int radiusDp) {
