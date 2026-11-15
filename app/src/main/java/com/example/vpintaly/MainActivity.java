@@ -1710,7 +1710,7 @@ public class MainActivity extends AppCompatActivity {
                     }
                 } catch (Exception e) {
                 }
-                if (latest != versionName) {
+                if (!latest.equals(versionName)) {
                     runOnUiThread(() -> update(latest));
                 }
 
@@ -1722,11 +1722,11 @@ public class MainActivity extends AppCompatActivity {
 
     private void update(String latest){
         AlertDialog.Builder bilder = new AlertDialog.Builder(this)
-                .setTitle("Обнаружена новая версия Vpintaly")
+                .setTitle("Обнаружена новая версия Vpintaly("+ latest + ")")
                 .setMessage("Обновить Vpintaly?")
                 .setPositiveButton("Обновить", (dialog, which) -> {
                     try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Aracamba/Vpintaly/releases/download/" + latest + "/vpintaly("+ latest +").apk"));
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Aracamba/Vpintaly/releases/download/" + latest + "/vpintaly."+ latest +".apk")); //исправление ошибки получения обновлений
                         startActivity(intent);
                     } catch (ActivityNotFoundException e) {
                     }
