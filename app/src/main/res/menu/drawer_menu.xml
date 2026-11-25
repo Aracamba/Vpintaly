@@ -9,7 +9,12 @@
     <item
         android:id="@+id/nav_sync"
         android:icon="@android:drawable/ic_menu_mylocation"
-        android:title="Синхронизация" />
+        android:title="Конфигурации" />
+
+    <item
+        android:id="@+id/nav_sett"
+        android:icon="@android:drawable/ic_menu_edit"
+        android:title="Настройки" />
 
     <item
         android:id="@+id/nav_log"
@@ -20,11 +25,6 @@
         android:id="@+id/nav_sup"
         android:icon="@android:drawable/ic_menu_manage"
         android:title="Поддержка" />
-
-    <item
-        android:id="@+id/nav_sett"
-        android:icon="@android:drawable/ic_menu_edit"
-        android:title="Настройки" />
 
     <item
         android:id="@+id/nav_test"

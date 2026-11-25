@@ -1,4 +1,4 @@
-package com.example.vpintaly;
+package com.aracamba.vpintaly;
 
 import org.junit.Test;
 

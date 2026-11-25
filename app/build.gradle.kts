@@ -3,13 +3,13 @@ plugins {
 }
 
 android {
-    namespace = "com.example.vpintaly"
+    namespace = "com.aracamba.vpintaly"
     compileSdk {
         version = release(37)
     }
 
     defaultConfig {
-        applicationId = "com.example.vpintaly"
+        applicationId = "com.aracamba.vpintaly"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

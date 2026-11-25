@@ -1,5 +1,5 @@
 
-package com.example.vpintaly;
+package com.aracamba.vpintaly;
 
 import android.app.AlertDialog;
 import android.content.ActivityNotFoundException;
@@ -63,7 +63,6 @@ import java.io.BufferedReader;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.text.SimpleDateFormat;
@@ -79,8 +78,6 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.regex.Matcher;
@@ -107,16 +104,15 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String KEY_VPN_CLIENT = "vpn_client";
     private static final String KEY_AMNEZIA_ENABLED = "amnezia_enabled";
+    private static final String KEY_BYPASS_ENABLED = "bypass_enabled";
     private static final String KEY_AMNEZIA_DEVICE = "amnezia_device";
 
     private EditText amneziaDeviceInput;
     private static final String PREFS_NAME = "vpintaly_settings";
     private static final String KEY_GOOGLE_CONNECTED = "google_connected";
-
     private static final String KEY_CONFIGS_JSON = "saved_vpn_configs";
     private static final String KEY_DEVICE_CONFIGS_JSON = "saved_device_configs";
     private static final String KEY_CONFIG_STATUSES = "saved_config_statuses";
-
     private static final String KEY_CONFIGS_SENT_PREFIX = "sent_vpn_configs_";
     private static final String DOCS_SCOPE = "https://www.googleapis.com/auth/documents.readonly";
 
@@ -204,12 +200,12 @@ public class MainActivity extends AppCompatActivity {
                 showHome();
             } else if (id == R.id.nav_sync) {
                 showSync();
+            } else if (id == R.id.nav_sett) {
+                showSettings();
             } else if (id == R.id.nav_log) {
                 showLog();
             } else if (id == R.id.nav_sup) {
                 showSupport();
-            } else if (id == R.id.nav_sett) {
-                showSettings();
             } else if (id == R.id.nav_about) {
                 showAbout();
             } else if (id == R.id.nav_test) {
@@ -222,7 +218,6 @@ public class MainActivity extends AppCompatActivity {
 
         navigationView.setCheckedItem(R.id.nav_home);
         checkLatestVersion();
-        //update("");
         showHome();
         addLog("INFO", "Приложение запущено.");
     }
@@ -313,6 +308,8 @@ public class MainActivity extends AppCompatActivity {
         }
         layout.addView(documentUrlInput, inputParams);
 
+
+
         Button sendConfigsButton = new Button(this);
         sendConfigsButton.setText("Передать конфигурации в VPN");
         sendConfigsButton.setAllCaps(false);
@@ -371,7 +368,7 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void showSync(){
-        toolbarTitle.setText("Синхронизация");
+        toolbarTitle.setText("Конфигурации");
         contentFrame.removeAllViews();
 
         ScrollView scrollView = new ScrollView(this);
@@ -382,16 +379,9 @@ public class MainActivity extends AppCompatActivity {
         layout.setPadding(dp(16), dp(20), dp(16), dp(24));
         scrollView.addView(layout);
 
-        TextView heading = new TextView(this);
-        heading.setText("Конфигурации");
-        heading.setTextColor(getColor(R.color.vp_text));
-        heading.setTextSize(24);
-        heading.setTypeface(null, Typeface.BOLD);
-        layout.addView(heading);
-
         TextView subtitle = new TextView(this);
         subtitle.setText(
-                "Сохранённые ссылки из Google Docs");
+                "Сохранённые конфигурации из Google Docs");
         subtitle.setTextColor(getColor(R.color.vp_text_secondary));
         subtitle.setTextSize(14);
         subtitle.setPadding(0, dp(6), 0, dp(16));
@@ -512,7 +502,6 @@ public class MainActivity extends AppCompatActivity {
 
                 if (clipboard != null) {
                     clipboard.setPrimaryClip(clip);
-
                     Toast.makeText(getApplicationContext(), "Текст скопирован в буфер", Toast.LENGTH_SHORT).show();
                 }
             } catch (Exception x){
@@ -559,6 +548,11 @@ public class MainActivity extends AppCompatActivity {
 
         if (separator <= 0) {
             return "ERR";
+        }
+
+        if("HTTPS".equals(config.substring(0, separator)
+                .toUpperCase(Locale.ROOT))){
+            return "SUB";
         }
 
         return config.substring(0, separator)
@@ -623,12 +617,15 @@ public class MainActivity extends AppCompatActivity {
     private List<String> loadUnsentV2Configs() {
         List<String> unsent = new ArrayList<>();
 
+        boolean bypassEnabled = preferences.getBoolean(
+                KEY_BYPASS_ENABLED, false);
+
         Set<String> sent = getSentConfigs(
                 getSelectedVpnClient()
         );
 
         for (String config : loadV2Configs()) {
-            if (!sent.contains(config)) {
+            if (!sent.contains(config) || bypassEnabled) {
                 unsent.add(config);
             }
         }
@@ -640,6 +637,9 @@ public class MainActivity extends AppCompatActivity {
 
         List<String> result = new ArrayList<>();
 
+        boolean bypassEnabled = preferences.getBoolean(
+                KEY_BYPASS_ENABLED, false);
+
         String config = loadAmneziaConfig(deviceNumber);
 
         if (config == null || config.trim().isEmpty()) {
@@ -648,7 +648,7 @@ public class MainActivity extends AppCompatActivity {
 
         Set<String> sent = getSentConfigs("AmneziaVPN");
 
-        if (!sent.contains(config)) {
+        if (!sent.contains(config) || bypassEnabled) {
             result.add(config);
         }
 
@@ -1023,9 +1023,28 @@ public class MainActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.WRAP_CONTENT);
         layout.addView(card, cardParams);
 
+        CheckBox bypassCheckBox = new CheckBox(this);
+        bypassCheckBox.setText("Принудительная передача конфигураций");
+        bypassCheckBox.setTextColor(getColor(R.color.vp_text));
+
+        boolean bypassEnabled = preferences.getBoolean(KEY_BYPASS_ENABLED, false);
+        bypassCheckBox.setChecked(bypassEnabled);
+        layout.addView(bypassCheckBox);
+
+        bypassCheckBox.setOnCheckedChangeListener((button, checked) -> {
+            preferences.edit()
+                    .putBoolean(KEY_BYPASS_ENABLED, checked)
+                    .apply();
+            if (checked) {
+                Toast.makeText(this, "Эта функция отключает автопроверку статуса конфигов", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Ручная проверка доступна только после передачи конфигураций", Toast.LENGTH_SHORT).show();
+                Toast.makeText(this, "Если вам это не требуется - отключите данную функцию", Toast.LENGTH_SHORT).show();
+            }
+        });
+
         // Настройки VPN-клиента
         TextView vpnHeading = new TextView(this);
-        vpnHeading.setText("VPN-клиент");
+        vpnHeading.setText("\nVPN-клиент");
         vpnHeading.setTextColor(getColor(R.color.vp_text));
         vpnHeading.setTextSize(18);
         vpnHeading.setTypeface(null, Typeface.BOLD);
@@ -1204,8 +1223,11 @@ public class MainActivity extends AppCompatActivity {
 
         WebView webView = new WebView(this);
         WebSettings webSettings = webView.getSettings();
+        webSettings.setDomStorageEnabled(true);
         webSettings.setJavaScriptEnabled(true);
-        webView.loadUrl("https://librespeed.org/");
+        webView.loadUrl("https://speed.cloudflare.com/ru-ru");
+        Toast.makeText(this, "Cloudflare стабильно срезает 50-60% трафика.", Toast.LENGTH_SHORT).show();
+        Toast.makeText(this, "Старайтесь смотреть на качество соединения, а не на скорость.", Toast.LENGTH_SHORT).show();
 
         contentFrame.addView(webView,
                 new FrameLayout.LayoutParams(
@@ -1396,7 +1418,7 @@ public class MainActivity extends AppCompatActivity {
 
 // Сравниваем конфигурации отдельно по номерам устройств
                 runOnUiThread(() ->
-                        compareAndSaveDeviceConfigs(deviceConfigs));
+                        compareAndSaveDeviceConfigs(deviceConfigs, true));
 
                 runOnUiThread(() -> {
                         addLog("INFO",
@@ -1574,7 +1596,7 @@ public class MainActivity extends AppCompatActivity {
 
         return devices;
     }
-    private void compareAndSaveDeviceConfigs(Map<String, String> newDevices) {
+    private void compareAndSaveDeviceConfigs(Map<String, String> newDevices, boolean send) {
 
         String savedJson = preferences.getString(
                 KEY_DEVICE_CONFIGS_JSON, "{}");
@@ -1661,7 +1683,7 @@ public class MainActivity extends AppCompatActivity {
                         + ", без изменений: " + unchanged
                         + ", удалённых: " + removed);
 
-        sendConfigsToVpnClient();
+        if (send) sendConfigsToVpnClient();
     }
 
     private void checkLatestVersion() {
@@ -1726,7 +1748,7 @@ public class MainActivity extends AppCompatActivity {
                 .setMessage("Обновить Vpintaly?")
                 .setPositiveButton("Обновить", (dialog, which) -> {
                     try {
-                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Aracamba/Vpintaly/releases/download/" + latest + "/vpintaly."+ latest +".apk")); //исправление ошибки получения обновлений
+                        Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse("https://github.com/Aracamba/Vpintaly/releases/download/" + latest + "/vpintaly."+ latest +".apk"));
                         startActivity(intent);
                     } catch (ActivityNotFoundException e) {
                     }

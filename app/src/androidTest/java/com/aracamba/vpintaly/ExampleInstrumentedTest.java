@@ -1,4 +1,4 @@
-package com.example.vpintaly;
+package com.aracamba.vpintaly;
 
 import android.content.Context;
 
@@ -21,6 +21,6 @@ public class ExampleInstrumentedTest {
     public void useAppContext() {
         // Context of the app under test.
         Context appContext = InstrumentationRegistry.getInstrumentation().getTargetContext();
-        assertEquals("com.example.vpintaly", appContext.getPackageName());
+        assertEquals("com.aracamba.vpintaly", appContext.getPackageName());
     }
 }
