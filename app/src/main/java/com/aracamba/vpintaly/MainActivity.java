@@ -104,7 +104,7 @@ public class MainActivity extends AppCompatActivity {
 
     private static final String KEY_VPN_CLIENT = "vpn_client";
     private static final String KEY_AMNEZIA_ENABLED = "amnezia_enabled";
-    private static final String KEY_BYPASS_ENABLED = "bypass_enabled";
+    //private static final String KEY_BYPASS_ENABLED = "bypass_enabled";
     private static final String KEY_AMNEZIA_DEVICE = "amnezia_device";
 
     private EditText amneziaDeviceInput;
@@ -617,15 +617,17 @@ public class MainActivity extends AppCompatActivity {
     private List<String> loadUnsentV2Configs() {
         List<String> unsent = new ArrayList<>();
 
-        boolean bypassEnabled = preferences.getBoolean(
-                KEY_BYPASS_ENABLED, false);
+        //boolean bypassEnabled = preferences.getBoolean(
+        //        KEY_BYPASS_ENABLED, false);
 
         Set<String> sent = getSentConfigs(
                 getSelectedVpnClient()
         );
 
         for (String config : loadV2Configs()) {
-            if (!sent.contains(config) || bypassEnabled) {
+            if (!sent.contains(config)
+                    //|| bypassEnabled
+            ) {
                 unsent.add(config);
             }
         }
@@ -637,8 +639,8 @@ public class MainActivity extends AppCompatActivity {
 
         List<String> result = new ArrayList<>();
 
-        boolean bypassEnabled = preferences.getBoolean(
-                KEY_BYPASS_ENABLED, false);
+        //boolean bypassEnabled = preferences.getBoolean(
+        //        KEY_BYPASS_ENABLED, false);
 
         String config = loadAmneziaConfig(deviceNumber);
 
@@ -648,7 +650,9 @@ public class MainActivity extends AppCompatActivity {
 
         Set<String> sent = getSentConfigs("AmneziaVPN");
 
-        if (!sent.contains(config) || bypassEnabled) {
+        if (!sent.contains(config)
+                //|| bypassEnabled
+        ) {
             result.add(config);
         }
 
@@ -1023,24 +1027,24 @@ public class MainActivity extends AppCompatActivity {
                         ViewGroup.LayoutParams.WRAP_CONTENT);
         layout.addView(card, cardParams);
 
-        CheckBox bypassCheckBox = new CheckBox(this);
-        bypassCheckBox.setText("Принудительная передача конфигураций");
-        bypassCheckBox.setTextColor(getColor(R.color.vp_text));
+        //CheckBox bypassCheckBox = new CheckBox(this);
+        //bypassCheckBox.setText("Принудительная передача конфигураций");
+        //bypassCheckBox.setTextColor(getColor(R.color.vp_text));
 
-        boolean bypassEnabled = preferences.getBoolean(KEY_BYPASS_ENABLED, false);
-        bypassCheckBox.setChecked(bypassEnabled);
-        layout.addView(bypassCheckBox);
+        //boolean bypassEnabled = preferences.getBoolean(KEY_BYPASS_ENABLED, false);
+        //bypassCheckBox.setChecked(bypassEnabled);
+        //layout.addView(bypassCheckBox);
 
-        bypassCheckBox.setOnCheckedChangeListener((button, checked) -> {
-            preferences.edit()
-                    .putBoolean(KEY_BYPASS_ENABLED, checked)
-                    .apply();
-            if (checked) {
-                Toast.makeText(this, "Эта функция отключает автопроверку статуса конфигов", Toast.LENGTH_SHORT).show();
-                Toast.makeText(this, "Ручная проверка доступна только после передачи конфигураций", Toast.LENGTH_SHORT).show();
-                Toast.makeText(this, "Если вам это не требуется - отключите данную функцию", Toast.LENGTH_SHORT).show();
-            }
-        });
+        //bypassCheckBox.setOnCheckedChangeListener((button, checked) -> {
+        //    preferences.edit()
+        //            .putBoolean(KEY_BYPASS_ENABLED, checked)
+        //            .apply();
+        //    if (checked) {
+        //        Toast.makeText(this, "Эта функция отключает автопроверку статуса конфигов", Toast.LENGTH_SHORT).show();
+        //        Toast.makeText(this, "Ручная проверка доступна только после передачи конфигураций", Toast.LENGTH_SHORT).show();
+        //        Toast.makeText(this, "Если вам это не требуется - отключите данную функцию", Toast.LENGTH_SHORT).show();
+        //    }
+        //});
 
         // Настройки VPN-клиента
         TextView vpnHeading = new TextView(this);
